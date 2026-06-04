@@ -1,0 +1,142 @@
+{
+  "name": "branch-changed-files",
+  "displayName": "Branch Changed Files",
+  "description": "Muestra en el Explorer los archivos modificados en el branch actual respecto a su branch base, diferenciando cambios commiteados de cambios pendientes.",
+  "version": "0.1.0",
+  "publisher": "asumaran",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "id": "branchChangedFiles.view",
+          "name": "Branch Changes",
+          "icon": "$(git-branch)",
+          "contextualTitle": "Branch Changes"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "branchChangedFiles.view",
+        "contents": "No se detectó un repositorio git en el workspace.\n[Recargar](command:branchChangedFiles.refresh)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "branchChangedFiles.refresh",
+        "title": "Refrescar",
+        "category": "Branch Changes",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "branchChangedFiles.setBase",
+        "title": "Elegir branch base...",
+        "category": "Branch Changes",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "branchChangedFiles.autoDetectBase",
+        "title": "Auto-detectar branch base (merge-base más cercano)",
+        "category": "Branch Changes",
+        "icon": "$(wand)"
+      },
+      {
+        "command": "branchChangedFiles.clearBase",
+        "title": "Restablecer base al default",
+        "category": "Branch Changes",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "branchChangedFiles.openDiff",
+        "title": "Abrir diff contra la base",
+        "category": "Branch Changes",
+        "icon": "$(git-compare)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "branchChangedFiles.refresh",
+          "when": "view == branchChangedFiles.view",
+          "group": "navigation@1"
+        },
+        {
+          "command": "branchChangedFiles.setBase",
+          "when": "view == branchChangedFiles.view",
+          "group": "navigation@2"
+        },
+        {
+          "command": "branchChangedFiles.autoDetectBase",
+          "when": "view == branchChangedFiles.view",
+          "group": "1_base@1"
+        },
+        {
+          "command": "branchChangedFiles.clearBase",
+          "when": "view == branchChangedFiles.view",
+          "group": "1_base@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "branchChangedFiles.openDiff",
+          "when": "view == branchChangedFiles.view && viewItem == changedFile",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Branch Changed Files",
+      "properties": {
+        "branchChangedFiles.alwaysCompareToMain": {
+          "type": "boolean",
+          "default": false,
+          "description": "Forzar siempre la comparación contra el branch principal, ignorando overrides manuales por branch."
+        },
+        "branchChangedFiles.mainBranchCandidates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "main",
+            "master",
+            "develop"
+          ],
+          "description": "Branches candidatos a usarse como base por defecto, en orden de prioridad."
+        },
+        "branchChangedFiles.respectFilesExclude": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ocultar archivos que coincidan con los globs de la configuración 'files.exclude' (igual que el Explorer)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js --production",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "minimatch": "^9.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.21.0",
+    "typescript": "^5.4.0"
+  }
+}

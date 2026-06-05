@@ -69,6 +69,18 @@ export async function refExists(repoRoot: string, ref: string): Promise<boolean>
   }
 }
 
+/**
+ * Hace `git fetch <remote> <branch>` para actualizar la ref de seguimiento
+ * remota (p.ej. `origin/master`). Lanza si el remoto no responde.
+ */
+export async function fetchBranch(
+  repoRoot: string,
+  remote: string,
+  branch: string
+): Promise<void> {
+  await git(repoRoot, ["fetch", "--quiet", remote, branch]);
+}
+
 /** SHA de una ref, o null. */
 export async function revParse(repoRoot: string, ref: string): Promise<string | null> {
   try {
@@ -105,26 +117,32 @@ export async function commitTime(repoRoot: string, ref: string): Promise<number>
 
 /**
  * Branch principal por defecto del repo. Intenta el HEAD de origin y luego
- * los candidatos provistos (locales o remotos).
+ * los candidatos provistos.
+ *
+ * Prefiere la ref de seguimiento remota (`origin/master`) por sobre la local
+ * (`master`): el servidor (GitHub/GitLab) calcula el diff del PR contra SU
+ * master, y `origin/master` es el espejo local de ese estado. El `master`
+ * local suele estar desactualizado, lo que correría el merge-base hacia atrás
+ * y arrastraría archivos de commits ajenos al branch. (Requiere `git fetch`
+ * para que `origin/master` esté al día.)
  */
 export async function detectMainBranch(
   repoRoot: string,
   candidates: string[]
 ): Promise<string | null> {
-  // origin/HEAD apunta al default del remoto (p.ej. origin/main).
+  // origin/HEAD apunta al default del remoto (p.ej. origin/main). Conservamos
+  // el prefijo `origin/` para comparar contra la ref remota.
   try {
     const out = await git(repoRoot, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]);
     const ref = out.trim(); // "origin/main"
-    if (ref) {
-      return ref.replace(/^origin\//, "");
-    }
+    if (ref) return ref;
   } catch {
     // sin remoto / sin HEAD configurado
   }
 
   for (const cand of candidates) {
+    if (await refExists(repoRoot, `origin/${cand}`)) return `origin/${cand}`;
     if (await refExists(repoRoot, cand)) return cand;
-    if (await refExists(repoRoot, `origin/${cand}`)) return cand;
   }
   return null;
 }

@@ -3,6 +3,7 @@ import { minimatch } from "minimatch";
 import {
   ChangedFile,
   committedFiles,
+  fetchBranch,
   getCurrentBranch,
   getRepoRoot,
   listBranches,
@@ -64,7 +65,8 @@ export function activate(context: vscode.ExtensionContext) {
       openDiff(item)
     ),
     vscode.commands.registerCommand("branchChangedFiles.viewAsTree", () => setViewMode("tree")),
-    vscode.commands.registerCommand("branchChangedFiles.viewAsList", () => setViewMode("list"))
+    vscode.commands.registerCommand("branchChangedFiles.viewAsList", () => setViewMode("list")),
+    vscode.commands.registerCommand("branchChangedFiles.fetchBase", () => fetchBaseCommand())
   );
 
   // Refrescos reactivos.
@@ -282,6 +284,31 @@ async function clearBaseCommand(): Promise<void> {
   const { repoRoot, branch } = current;
   if (!branch) return;
   await resolver.clearOverride(repoRoot, branch);
+  await refresh();
+}
+
+/**
+ * Actualiza la ref remota de la base (`git fetch origin <branch>`) y refresca.
+ * Necesario para que la comparación matchee al PR del servidor: el merge-base
+ * solo es correcto si `origin/<base>` está al día.
+ */
+async function fetchBaseCommand(): Promise<void> {
+  if (!current?.base) return;
+  const { repoRoot, base } = current;
+  const remote = "origin";
+  const branch = base.startsWith(`${remote}/`) ? base.slice(remote.length + 1) : base;
+
+  await vscode.window.withProgress(
+    { location: { viewId: "branchChangedFiles.view" }, title: `Fetch ${remote}/${branch}…` },
+    async () => {
+      try {
+        await fetchBranch(repoRoot, remote, branch);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        vscode.window.showErrorMessage(`No se pudo hacer fetch de ${remote}/${branch}: ${msg}`);
+      }
+    }
+  );
   await refresh();
 }
 

@@ -75,6 +75,12 @@
         "title": "Ver como lista plana",
         "category": "Branch Changes",
         "icon": "$(list-flat)"
+      },
+      {
+        "command": "branchChangedFiles.fetchBase",
+        "title": "Fetch del branch base (actualizar origin)",
+        "category": "Branch Changes",
+        "icon": "$(cloud-download)"
       }
     ],
     "menus": {
@@ -83,6 +89,11 @@
           "command": "branchChangedFiles.refresh",
           "when": "view == branchChangedFiles.view",
           "group": "navigation@1"
+        },
+        {
+          "command": "branchChangedFiles.fetchBase",
+          "when": "view == branchChangedFiles.view",
+          "group": "1_base@0"
         },
         {
           "command": "branchChangedFiles.viewAsTree",

@@ -25,8 +25,21 @@ Jerarquía:
 
 1. **Override manual por branch** (comando *Elegir branch base...*), recordado
    por branch en el workspace.
-2. **Branch principal** del repo (`origin/HEAD`, o el primer candidato de
-   `mainBranchCandidates`).
+2. **Branch principal** del repo, preferentemente la **ref remota**
+   (`origin/master`) por sobre la local (`master`), tomada de `origin/HEAD` o
+   del primer candidato de `mainBranchCandidates`.
+
+### Por qué `origin/master` y no `master`
+
+GitHub/GitLab calculan los archivos del PR con un **three-dot diff**
+(`base...head`), cuyo merge-base es el punto de divergencia contra el master
+**del servidor**. `origin/master` es el espejo local de ese estado; el `master`
+local suele estar atrasado y, al correr el merge-base hacia atrás, arrastra
+archivos de commits ajenos al branch (aparecen "de más").
+
+Por eso la comparación apunta a `origin/*`. Para que coincida exactamente con
+el PR, `origin/master` debe estar al día: usá el botón **Fetch del branch base**
+(o `git fetch`) si ves discrepancias.
 
 El **merge-base más cercano** existe como botón explícito (*Auto-detectar branch
 base*), no como default silencioso: detecta el caso de branches apilados
@@ -65,3 +78,7 @@ npm run watch      # build incremental con esbuild
 
 - Usa el primer workspace folder / repo. Multi-repo es una mejora futura.
 - La integración con la base del PR de GitHub/GitLab queda como fase posterior.
+- Los archivos **pendientes** (sin commitear) se muestran aunque no estén en el
+  PR del servidor: es intencional, pero explica diferencias de conteo con GitHub.
+- `origin/<base>` se compara tal como esté en local; si no hiciste fetch reciente
+  puede estar atrasado. *Fetch del branch base* lo actualiza.

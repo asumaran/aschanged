@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
-import { ChangedFile, FileStatus } from "./git";
+import { ChangedFile, ChangeKind } from "./git";
 
 /** Modo de presentación de la vista. */
 export type ViewMode = "list" | "tree";
@@ -20,19 +20,16 @@ export class ChangedFileItem extends vscode.TreeItem {
     this.resourceUri = vscode.Uri.file(absPath);
     // El ícono nativo del tipo de archivo lo aporta resourceUri.
     this.label = label;
-    this.description = file.status === "pending" ? "pendiente" : "commiteado";
-    this.tooltip = `${file.relPath}\n${
-      file.status === "pending"
-        ? "Tiene cambios sin commitear"
-        : "Modificado en el branch (sin cambios pendientes)"
-    }`;
+    // Tooltip is just the path; the status is conveyed once by the dot badge's
+    // own tooltip (see StatusDecorationProvider), avoiding a duplicate phrase.
+    this.tooltip = file.relPath;
     this.contextValue = "changedFile";
-    // Click por defecto: abrir el archivo fuente. El diff queda en el botón inline.
-    this.command = {
-      command: "vscode.open",
-      title: "Abrir archivo",
-      arguments: [this.resourceUri],
-    };
+    // A deleted file has nothing to open in the working tree, so clicking it
+    // shows the diff against the base instead; otherwise open the source file.
+    this.command =
+      file.kind === "deleted"
+        ? { command: "branchChangedFiles.openDiff", title: "Ver diff", arguments: [this] }
+        : { command: "vscode.open", title: "Abrir archivo", arguments: [this.resourceUri] };
   }
 }
 
@@ -169,48 +166,72 @@ function toFolder(
   return folder;
 }
 
+/** Per-kind badge: a git-style letter plus the matching git theme color. */
+const KIND_BADGE: Record<ChangeKind, { letter: string; colorId: string; tooltip: string }> = {
+  added: {
+    letter: "A",
+    colorId: "gitDecoration.addedResourceForeground",
+    tooltip: "Agregado (sin commitear)",
+  },
+  modified: {
+    letter: "M",
+    colorId: "gitDecoration.modifiedResourceForeground",
+    tooltip: "Modificado (sin commitear)",
+  },
+  deleted: {
+    letter: "D",
+    colorId: "gitDecoration.deletedResourceForeground",
+    tooltip: "Eliminado (sin commitear)",
+  },
+  renamed: {
+    letter: "R",
+    colorId: "gitDecoration.renamedResourceForeground",
+    tooltip: "Renombrado (sin commitear)",
+  },
+  untracked: {
+    letter: "U",
+    colorId: "gitDecoration.untrackedResourceForeground",
+    tooltip: "Sin trackear",
+  },
+};
+
 /**
- * Aporta un badge de color a los archivos según su estado, reutilizando los
- * colores del tema de git. Solo decora URIs que están en nuestros sets, así
- * que el impacto fuera de la vista es mínimo y coherente con git.
+ * Decorates files that have uncommitted (pending) changes with a git-style
+ * letter badge (M/A/D/R/U) in the matching git theme color. Committed files get
+ * no badge: being part of the branch is the default state for the view.
  */
 export class StatusDecorationProvider implements vscode.FileDecorationProvider {
   private readonly _onDidChange = new vscode.EventEmitter<vscode.Uri[]>();
   readonly onDidChangeFileDecorations = this._onDidChange.event;
 
-  private statusByPath = new Map<string, FileStatus>();
+  private kindByPath = new Map<string, ChangeKind>();
 
   update(repoRoot: string, files: ChangedFile[]): void {
-    const changed: vscode.Uri[] = [];
-    const next = new Map<string, FileStatus>();
+    const next = new Map<string, ChangeKind>();
     for (const f of files) {
+      if (f.status !== "pending") continue; // committed files are not decorated
       const fsPath = vscode.Uri.file(path.join(repoRoot, f.relPath)).fsPath;
-      next.set(fsPath, f.status);
+      next.set(fsPath, f.kind);
     }
     // URIs que cambiaron de estado (o aparecieron/desaparecieron).
-    for (const key of new Set([...this.statusByPath.keys(), ...next.keys()])) {
-      if (this.statusByPath.get(key) !== next.get(key)) {
+    const changed: vscode.Uri[] = [];
+    for (const key of new Set([...this.kindByPath.keys(), ...next.keys()])) {
+      if (this.kindByPath.get(key) !== next.get(key)) {
         changed.push(vscode.Uri.file(key));
       }
     }
-    this.statusByPath = next;
+    this.kindByPath = next;
     this._onDidChange.fire(changed);
   }
 
   provideFileDecoration(uri: vscode.Uri): vscode.FileDecoration | undefined {
-    const status = this.statusByPath.get(uri.fsPath);
-    if (!status) return undefined;
-    if (status === "pending") {
-      return {
-        badge: "●",
-        tooltip: "Cambios sin commitear",
-        color: new vscode.ThemeColor("gitDecoration.modifiedResourceForeground"),
-      };
-    }
+    const kind = this.kindByPath.get(uri.fsPath);
+    if (!kind) return undefined;
+    const badge = KIND_BADGE[kind];
     return {
-      badge: "✓",
-      tooltip: "Modificado en el branch (commiteado)",
-      color: new vscode.ThemeColor("descriptionForeground"),
+      badge: badge.letter,
+      tooltip: badge.tooltip,
+      color: new vscode.ThemeColor(badge.colorId),
     };
   }
 }

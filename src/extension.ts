@@ -118,7 +118,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("aschanged.fetchBase", () => fetchBaseCommand())
   );
 
-  // Refrescos reactivos.
+  // Reactive refreshes.
   context.subscriptions.push(
     vscode.workspace.onDidSaveTextDocument(() => scheduleRefresh()),
     vscode.workspace.onDidChangeWorkspaceFolders(() => scheduleRefresh()),
@@ -132,7 +132,7 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // Eventos del git incorporado (commit, checkout, staging...).
+  // Built-in git events (commit, checkout, staging...).
   wireGitExtension(context);
 
   refresh();
@@ -142,7 +142,7 @@ export function deactivate() {
   if (refreshTimer) clearTimeout(refreshTimer);
 }
 
-/** Conecta a la API del git incorporado para escuchar cambios de estado. */
+/** Hooks into the built-in git API to listen for state changes. */
 function wireGitExtension(context: vscode.ExtensionContext) {
   const ext = vscode.extensions.getExtension<any>("vscode.git");
   if (!ext) return;
@@ -155,7 +155,7 @@ function wireGitExtension(context: vscode.ExtensionContext) {
       api.repositories.forEach(subscribe);
       context.subscriptions.push(api.onDidOpenRepository(subscribe));
     } catch {
-      // API no disponible; quedan los demás triggers (save, comando manual).
+      // API unavailable; the other triggers remain (save, manual command).
     }
   };
 
@@ -168,7 +168,7 @@ function scheduleRefresh() {
   refreshTimer = setTimeout(() => refresh(), 250);
 }
 
-/** Cambia entre vista de lista plana y vista de árbol de carpetas. */
+/** Switches between flat-list and folder-tree views. */
 async function setViewMode(mode: ViewMode): Promise<void> {
   if (viewMode === mode) return;
   viewMode = mode;
@@ -177,14 +177,14 @@ async function setViewMode(mode: ViewMode): Promise<void> {
   await refresh();
 }
 
-/** Recalcula todo el estado y repinta la vista. */
+/** Recomputes the whole state and repaints the view. */
 async function refresh(): Promise<void> {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (!folder) {
     current = null;
     saveSnapshot(null);
     provider.setRoots([]);
-    treeView.message = "Abrí una carpeta con un repositorio git.";
+    treeView.message = "Open a folder with a git repository.";
     return;
   }
 
@@ -193,7 +193,7 @@ async function refresh(): Promise<void> {
     current = null;
     saveSnapshot(null);
     provider.setRoots([]);
-    treeView.message = "No se detectó un repositorio git en el workspace.";
+    treeView.message = "No git repository detected in the workspace.";
     return;
   }
 
@@ -206,7 +206,7 @@ async function refresh(): Promise<void> {
     provider.setRoots([]);
     decorations.update(repoRoot, []);
     treeView.message =
-      "No se pudo determinar un branch base. Usá 'Elegir branch base...' o configurá mainBranchCandidates.";
+      "Couldn't determine a base branch. Use 'Pick base branch...' or set mainBranchCandidates.";
     return;
   }
 
@@ -216,7 +216,7 @@ async function refresh(): Promise<void> {
     saveSnapshot(null);
     provider.setRoots([]);
     decorations.update(repoRoot, []);
-    treeView.message = `El branch actual no comparte historia con '${base}'.`;
+    treeView.message = `The current branch shares no history with '${base}'.`;
     return;
   }
 
@@ -230,10 +230,10 @@ async function refresh(): Promise<void> {
   const files = buildFileList(committed, pending);
   const visible = applyExcludes(files);
 
-  // Header: branch actual + base + origen de la base.
+  // Header: current branch + base + base origin.
   const overridden = branch ? !!resolver.getOverride(repoRoot, branch) : false;
   treeView.description = `${branch ?? "(detached)"} ← ${base}${overridden ? " (manual)" : ""}`;
-  treeView.message = visible.length === 0 ? "Sin archivos modificados respecto a la base." : undefined;
+  treeView.message = visible.length === 0 ? "No files changed relative to the base." : undefined;
 
   decorations.update(repoRoot, visible);
   provider.setRoots(buildNodes(visible, repoRoot, mb, viewMode, compactFoldersEnabled()));
@@ -247,8 +247,8 @@ async function refresh(): Promise<void> {
 }
 
 /**
- * Une commiteados y pendientes en una sola lista. Si un archivo está en ambos,
- * gana "pending" (tiene cambios sin commitear).
+ * Merges committed and pending into a single list. If a file is in both,
+ * "pending" wins (it has uncommitted changes).
  */
 function buildFileList(committed: RawChange[], pending: RawChange[]): ChangedFile[] {
   const map = new Map<string, ChangedFile>();
@@ -256,7 +256,7 @@ function buildFileList(committed: RawChange[], pending: RawChange[]): ChangedFil
   for (const c of committed) {
     map.set(c.relPath, { relPath: c.relPath, status: "committed", kind: c.kind });
   }
-  // Si un archivo también tiene cambios sin commitear, "pending" sobrescribe.
+  // If a file also has uncommitted changes, "pending" overrides.
   for (const p of pending) {
     map.set(p.relPath, { relPath: p.relPath, status: "pending", kind: p.kind });
   }
@@ -264,7 +264,7 @@ function buildFileList(committed: RawChange[], pending: RawChange[]): ChangedFil
   return [...map.values()].sort((a, b) => a.relPath.localeCompare(b.relPath));
 }
 
-/** Filtra archivos que coinciden con los globs de files.exclude. */
+/** Filters out files matching the files.exclude globs. */
 function applyExcludes(files: ChangedFile[]): ChangedFile[] {
   const respect = vscode.workspace
     .getConfiguration("aschanged")
@@ -280,29 +280,29 @@ function applyExcludes(files: ChangedFile[]): ChangedFile[] {
   return files.filter((f) => !patterns.some((p) => matchesGlob(f.relPath, p)));
 }
 
-/** Coincidencia estilo VSCode: prueba el path y cada segmento de carpeta. */
+/** VSCode-style matching: tests the path and each folder segment. */
 function matchesGlob(relPath: string, pattern: string): boolean {
   const opts = { dot: true, nocase: process.platform === "darwin" || process.platform === "win32" };
   if (minimatch(relPath, pattern, opts)) return true;
-  // files.exclude usa patrones tipo "**/node_modules" que deben atrapar también
-  // archivos dentro de esa carpeta.
+  // files.exclude uses patterns like "**/node_modules" that must also catch
+  // files inside that folder.
   return minimatch(relPath, `${pattern}/**`, opts);
 }
 
-// ---------- Comandos ----------
+// ---------- Commands ----------
 
 async function setBaseCommand(): Promise<void> {
   if (!current) return;
   const { repoRoot, branch } = current;
   if (!branch) {
-    vscode.window.showWarningMessage("Estás en detached HEAD; no se puede guardar una base por branch.");
+    vscode.window.showWarningMessage("You're in detached HEAD; can't save a per-branch base.");
     return;
   }
 
   const branches = await listBranches(repoRoot);
   const pick = await vscode.window.showQuickPick(branches, {
-    title: `Branch base para '${branch}'`,
-    placeHolder: "Elegí contra qué branch comparar",
+    title: `Base branch for '${branch}'`,
+    placeHolder: "Pick which branch to compare against",
   });
   if (!pick) return;
 
@@ -314,22 +314,22 @@ async function autoDetectCommand(): Promise<void> {
   if (!current) return;
   const { repoRoot, branch } = current;
   if (!branch) {
-    vscode.window.showWarningMessage("Estás en detached HEAD; no se puede auto-detectar la base.");
+    vscode.window.showWarningMessage("You're in detached HEAD; can't auto-detect the base.");
     return;
   }
 
   const detected = await resolver.autoDetect(repoRoot, branch);
   if (!detected) {
-    vscode.window.showInformationMessage("No se encontró un branch base candidato.");
+    vscode.window.showInformationMessage("No candidate base branch found.");
     return;
   }
 
   const confirm = await vscode.window.showInformationMessage(
-    `Base detectada: '${detected}'. ¿Usarla para '${branch}'?`,
-    "Usar",
-    "Cancelar"
+    `Detected base: '${detected}'. Use it for '${branch}'?`,
+    "Use",
+    "Cancel"
   );
-  if (confirm !== "Usar") return;
+  if (confirm !== "Use") return;
 
   await resolver.setOverride(repoRoot, branch, detected);
   await refresh();
@@ -344,9 +344,9 @@ async function clearBaseCommand(): Promise<void> {
 }
 
 /**
- * Actualiza la ref remota de la base (`git fetch origin <branch>`) y refresca.
- * Necesario para que la comparación matchee al PR del servidor: el merge-base
- * solo es correcto si `origin/<base>` está al día.
+ * Updates the base's remote ref (`git fetch origin <branch>`) and refreshes.
+ * Needed for the comparison to match the server's PR: the merge-base is only
+ * correct when `origin/<base>` is up to date.
  */
 async function fetchBaseCommand(): Promise<void> {
   if (!current?.base) return;
@@ -361,14 +361,14 @@ async function fetchBaseCommand(): Promise<void> {
         await fetchBranch(repoRoot, remote, branch);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        vscode.window.showErrorMessage(`No se pudo hacer fetch de ${remote}/${branch}: ${msg}`);
+        vscode.window.showErrorMessage(`Couldn't fetch ${remote}/${branch}: ${msg}`);
       }
     }
   );
   await refresh();
 }
 
-/** Abre un diff entre la base (merge-base) y el archivo en el working tree. */
+/** Opens a diff between the base (merge-base) and the file in the working tree. */
 async function openDiff(item: ChangedFileItem): Promise<void> {
   const fileUri = item.resourceUri!;
   const baseUri = toGitUri(fileUri, item.mergeBaseSha);
@@ -386,7 +386,7 @@ async function openDiff(item: ChangedFileItem): Promise<void> {
   }
 }
 
-/** Construye una git: URI para mostrar el contenido del archivo en una ref. */
+/** Builds a git: URI to show a file's contents at a given ref. */
 function toGitUri(fileUri: vscode.Uri, ref: string): vscode.Uri | null {
   try {
     const ext = vscode.extensions.getExtension<any>("vscode.git");

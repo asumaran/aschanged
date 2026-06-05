@@ -8,21 +8,21 @@ import {
 } from "./git";
 
 /**
- * Resuelve y persiste el branch base contra el que se comparan los cambios.
+ * Resolves and persists the base branch the changes are compared against.
  *
- * Jerarquía de resolución:
- *   1. Override manual por branch (workspaceState)  -> gana siempre, salvo
- *      que `alwaysCompareToMain` esté activo.
- *   2. Branch principal del repo (main/master/...).
+ * Resolution hierarchy:
+ *   1. Manual per-branch override (workspaceState) -> always wins, unless
+ *      `alwaysCompareToMain` is enabled.
+ *   2. The repo's main branch (main/master/...).
  *
- * El "auto merge-base más cercano" NO es el default silencioso: se expone como
- * comando explícito que escribe un override manual.
+ * The "closest merge-base auto-detect" is NOT the silent default: it's exposed
+ * as an explicit command that writes a manual override.
  */
 export class BaseResolver {
   constructor(private readonly memento: vscode.Memento) {}
 
   private key(repoRoot: string, branch: string): string {
-    return `bcf.base::${repoRoot}::${branch}`;
+    return `aschanged.base::${repoRoot}::${branch}`;
   }
 
   private candidates(): string[] {
@@ -37,7 +37,7 @@ export class BaseResolver {
       .get<boolean>("alwaysCompareToMain", false);
   }
 
-  /** Override manual guardado para este branch, si existe. */
+  /** Manual override saved for this branch, if any. */
   getOverride(repoRoot: string, branch: string): string | undefined {
     return this.memento.get<string>(this.key(repoRoot, branch));
   }
@@ -51,9 +51,9 @@ export class BaseResolver {
   }
 
   /**
-   * Devuelve el branch base efectivo para el branch actual.
-   * `branch` puede ser null (detached HEAD): en ese caso no hay override
-   * posible y se usa el branch principal.
+   * Returns the effective base branch for the current branch.
+   * `branch` may be null (detached HEAD): in that case there's no possible
+   * override and the main branch is used.
    */
   async resolve(repoRoot: string, branch: string | null): Promise<string | null> {
     if (!this.alwaysMain && branch) {
@@ -64,10 +64,10 @@ export class BaseResolver {
   }
 
   /**
-   * Heurística "merge-base más cercano": entre todos los branches candidatos,
-   * elige aquel cuyo punto de divergencia con HEAD es el más reciente.
-   * Excluye el branch actual y los descendientes de HEAD (cuyo merge-base es
-   * el propio tip de HEAD), para no elegir un branch hijo.
+   * "Closest merge-base" heuristic: among all candidate branches, picks the one
+   * whose divergence point with HEAD is the most recent. Excludes the current
+   * branch and descendants of HEAD (whose merge-base is HEAD's own tip), so it
+   * doesn't pick a child branch.
    */
   async autoDetect(repoRoot: string, currentBranch: string | null): Promise<string | null> {
     const headSha = await revParse(repoRoot, "HEAD");
@@ -82,7 +82,7 @@ export class BaseResolver {
       }
       const mb = await mergeBase(repoRoot, cand, "HEAD");
       if (!mb) continue;
-      if (mb === headSha) continue; // cand es descendiente/igual a HEAD -> ignorar
+      if (mb === headSha) continue; // cand is a descendant of / equal to HEAD -> ignore
 
       const when = await commitTime(repoRoot, mb);
       if (!best || when > best.when) {

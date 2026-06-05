@@ -24,8 +24,8 @@ export interface ChangedFile {
 }
 
 /**
- * Ejecuta git en `cwd` y devuelve stdout. Lanza si el comando falla.
- * maxBuffer alto para diffs grandes.
+ * Runs git in `cwd` and returns stdout. Throws if the command fails.
+ * High maxBuffer for large diffs.
  */
 async function git(cwd: string, args: string[]): Promise<string> {
   const { stdout } = await pexecFile("git", args, {
@@ -36,7 +36,7 @@ async function git(cwd: string, args: string[]): Promise<string> {
   return stdout;
 }
 
-/** Devuelve el root del repo que contiene `cwd`, o null si no hay repo. */
+/** Returns the root of the repo containing `cwd`, or null if there's no repo. */
 export async function getRepoRoot(cwd: string): Promise<string | null> {
   try {
     const out = await git(cwd, ["rev-parse", "--show-toplevel"]);
@@ -46,7 +46,7 @@ export async function getRepoRoot(cwd: string): Promise<string | null> {
   }
 }
 
-/** Branch actual, o null si está en detached HEAD. */
+/** Current branch, or null when in detached HEAD. */
 export async function getCurrentBranch(repoRoot: string): Promise<string | null> {
   try {
     const out = await git(repoRoot, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
@@ -56,7 +56,7 @@ export async function getCurrentBranch(repoRoot: string): Promise<string | null>
   }
 }
 
-/** Lista branches locales y remotos (sin el HEAD simbólico de remotos). */
+/** Lists local and remote branches (excluding the symbolic HEAD of remotes). */
 export async function listBranches(repoRoot: string): Promise<string[]> {
   const out = await git(repoRoot, [
     "for-each-ref",
@@ -70,7 +70,7 @@ export async function listBranches(repoRoot: string): Promise<string[]> {
     .filter((l) => l.length > 0 && !l.endsWith("/HEAD"));
 }
 
-/** Verifica si una ref existe. */
+/** Checks whether a ref exists. */
 export async function refExists(repoRoot: string, ref: string): Promise<boolean> {
   try {
     await git(repoRoot, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
@@ -81,8 +81,8 @@ export async function refExists(repoRoot: string, ref: string): Promise<boolean>
 }
 
 /**
- * Hace `git fetch <remote> <branch>` para actualizar la ref de seguimiento
- * remota (p.ej. `origin/master`). Lanza si el remoto no responde.
+ * Runs `git fetch <remote> <branch>` to update the remote-tracking ref
+ * (e.g. `origin/master`). Throws if the remote doesn't respond.
  */
 export async function fetchBranch(
   repoRoot: string,
@@ -92,7 +92,7 @@ export async function fetchBranch(
   await git(repoRoot, ["fetch", "--quiet", remote, branch]);
 }
 
-/** SHA de una ref, o null. */
+/** SHA of a ref, or null. */
 export async function revParse(repoRoot: string, ref: string): Promise<string | null> {
   try {
     const out = await git(repoRoot, ["rev-parse", "--verify", "--quiet", ref]);
@@ -102,7 +102,7 @@ export async function revParse(repoRoot: string, ref: string): Promise<string | 
   }
 }
 
-/** merge-base entre dos refs, o null si no comparten ancestro. */
+/** merge-base between two refs, or null if they share no ancestor. */
 export async function mergeBase(
   repoRoot: string,
   a: string,
@@ -116,7 +116,7 @@ export async function mergeBase(
   }
 }
 
-/** Timestamp (epoch) del commit de una ref, o 0. */
+/** Commit timestamp (epoch) of a ref, or 0. */
 export async function commitTime(repoRoot: string, ref: string): Promise<number> {
   try {
     const out = await git(repoRoot, ["show", "-s", "--format=%ct", ref]);
@@ -127,28 +127,28 @@ export async function commitTime(repoRoot: string, ref: string): Promise<number>
 }
 
 /**
- * Branch principal por defecto del repo. Intenta el HEAD de origin y luego
- * los candidatos provistos.
+ * Default main branch of the repo. Tries origin's HEAD first, then the
+ * provided candidates.
  *
- * Prefiere la ref de seguimiento remota (`origin/master`) por sobre la local
- * (`master`): el servidor (GitHub/GitLab) calcula el diff del PR contra SU
- * master, y `origin/master` es el espejo local de ese estado. El `master`
- * local suele estar desactualizado, lo que correría el merge-base hacia atrás
- * y arrastraría archivos de commits ajenos al branch. (Requiere `git fetch`
- * para que `origin/master` esté al día.)
+ * Prefers the remote-tracking ref (`origin/master`) over the local one
+ * (`master`): the server (GitHub/GitLab) computes the PR diff against ITS
+ * master, and `origin/master` is the local mirror of that state. The local
+ * `master` is often stale, which would push the merge-base backwards and drag
+ * in files from commits unrelated to the branch. (Requires `git fetch` to keep
+ * `origin/master` up to date.)
  */
 export async function detectMainBranch(
   repoRoot: string,
   candidates: string[]
 ): Promise<string | null> {
-  // origin/HEAD apunta al default del remoto (p.ej. origin/main). Conservamos
-  // el prefijo `origin/` para comparar contra la ref remota.
+  // origin/HEAD points to the remote default (e.g. origin/main). We keep the
+  // `origin/` prefix so we compare against the remote ref.
   try {
     const out = await git(repoRoot, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]);
     const ref = out.trim(); // "origin/main"
     if (ref) return ref;
   } catch {
-    // sin remoto / sin HEAD configurado
+    // no remote / no configured HEAD
   }
 
   for (const cand of candidates) {
@@ -159,8 +159,8 @@ export async function detectMainBranch(
 }
 
 /**
- * Archivos cambiados en los commits del branch desde la base (merge-base).
- * Usa `git diff --name-status -z <mergeBase> HEAD`.
+ * Files changed in the branch's commits since the base (merge-base).
+ * Uses `git diff --name-status -z <mergeBase> HEAD`.
  */
 export async function committedFiles(
   repoRoot: string,
@@ -178,8 +178,8 @@ export async function committedFiles(
 }
 
 /**
- * Archivos con cambios pendientes (staged + working tree + untracked).
- * Usa `git status --porcelain=v1 -z`.
+ * Files with pending changes (staged + working tree + untracked).
+ * Uses `git status --porcelain=v1 -z`.
  */
 export async function pendingFiles(repoRoot: string): Promise<RawChange[]> {
   const out = await git(repoRoot, ["status", "--porcelain=v1", "-z"]);
@@ -202,7 +202,7 @@ function nameStatusKind(code: string): ChangeKind {
   }
 }
 
-/** Parser de `--name-status -z`: maneja renames (status R/C llevan dos paths). */
+/** Parser for `--name-status -z`: handles renames (R/C status carry two paths). */
 function parseNameStatusZ(out: string): RawChange[] {
   const tokens = out.split("\0");
   const changes: RawChange[] = [];
@@ -237,7 +237,7 @@ function porcelainKind(xy: string): ChangeKind {
   return "modified";
 }
 
-/** Parser de `status --porcelain=v1 -z`: devuelve los paths con su tipo de cambio. */
+/** Parser for `status --porcelain=v1 -z`: returns paths with their change kind. */
 function parsePorcelainZ(out: string): RawChange[] {
   const tokens = out.split("\0");
   const changes: RawChange[] = [];
@@ -245,9 +245,9 @@ function parsePorcelainZ(out: string): RawChange[] {
     const entry = tokens[i];
     if (!entry) continue;
     const xy = entry.slice(0, 2);
-    const path = entry.slice(3); // salta "XY "
+    const path = entry.slice(3); // skip "XY "
     if (path) changes.push({ relPath: path, kind: porcelainKind(xy) });
-    // Renames/copies: el path de origen viene en el siguiente token.
+    // Renames/copies: the source path comes in the next token.
     if (xy[0] === "R" || xy[0] === "C") {
       i += 1;
     }

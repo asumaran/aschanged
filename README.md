@@ -1,84 +1,86 @@
 # AS Changed
 
-Una sección en el Explorer de VSCode que lista los archivos modificados en el
-branch actual **respecto a su branch base**, diferenciando lo ya commiteado de
-lo que tiene cambios sin commitear.
+An Explorer section that lists the files changed in the current branch
+**relative to its base branch**, distinguishing what's already committed from
+what still has uncommitted changes.
 
-## Qué muestra
+## What it shows
 
-- Una vista **Branch Changes** dentro del Explorer.
-- Dos modos de presentación, alternables con el botón en la barra de la vista
-  (igual que el toggle list/tree de Source Control):
-  - **Árbol de carpetas** (default): archivos anidados por carpeta, como la
-    sección de archivos del Explorer. Respeta `explorer.compactFolders`.
-  - **Lista plana**: un nodo por archivo con la ruta relativa completa.
-  - El modo elegido se recuerda entre sesiones.
-- En el header: `branch_actual ← base` (con `(manual)` si la base es un override).
-- Cada archivo con un badge:
-  - `●` (color de modificado) → **pendiente**: tiene cambios sin commitear.
-  - `✓` (atenuado) → **commiteado**: modificado en el branch, sin cambios pendientes.
-- Click en un archivo → diff entre la **base (merge-base)** y el working tree.
+- A **Branch Changes** view inside the Explorer.
+- Two presentation modes, toggled with a button in the view's title bar (just
+  like Source Control's list/tree toggle):
+  - **Folder tree** (default): files nested by folder, like the Explorer's file
+    section. Respects `explorer.compactFolders`.
+  - **Flat list**: one node per file with the full relative path.
+  - The chosen mode is remembered across sessions.
+- In the header: `current_branch ← base` (with `(manual)` when the base is an override).
+- Files with uncommitted changes get a git-style letter badge in the matching
+  git theme color:
+  - `M` modified · `A` added · `D` deleted · `R` renamed · `U` untracked.
+  - Committed files get no badge: being part of the branch is the default here.
+- Click a file → diff between the **base (merge-base)** and the working tree.
+  Deleted files open the diff (there's nothing to open in the working tree).
 
-## Cómo se elige la base
+## How the base is chosen
 
-Jerarquía:
+Hierarchy:
 
-1. **Override manual por branch** (comando *Elegir branch base...*), recordado
-   por branch en el workspace.
-2. **Branch principal** del repo, preferentemente la **ref remota**
-   (`origin/master`) por sobre la local (`master`), tomada de `origin/HEAD` o
-   del primer candidato de `mainBranchCandidates`.
+1. **Manual per-branch override** (*Pick base branch...* command), remembered
+   per branch in the workspace.
+2. The repo's **main branch**, preferring the **remote ref** (`origin/master`)
+   over the local one (`master`), taken from `origin/HEAD` or the first
+   `mainBranchCandidates` entry.
 
-### Por qué `origin/master` y no `master`
+### Why `origin/master` and not `master`
 
-GitHub/GitLab calculan los archivos del PR con un **three-dot diff**
-(`base...head`), cuyo merge-base es el punto de divergencia contra el master
-**del servidor**. `origin/master` es el espejo local de ese estado; el `master`
-local suele estar atrasado y, al correr el merge-base hacia atrás, arrastra
-archivos de commits ajenos al branch (aparecen "de más").
+GitHub/GitLab compute a PR's files with a **three-dot diff** (`base...head`),
+whose merge-base is the divergence point against the **server's** master.
+`origin/master` is the local mirror of that state; the local `master` is often
+stale and, by pushing the merge-base backwards, drags in files from commits
+unrelated to the branch (they appear as "extra").
 
-Por eso la comparación apunta a `origin/*`. Para que coincida exactamente con
-el PR, `origin/master` debe estar al día: usá el botón **Fetch del branch base**
-(o `git fetch`) si ves discrepancias.
+That's why the comparison targets `origin/*`. For it to match the PR exactly,
+`origin/master` must be up to date: use the **Fetch base branch** button (or
+`git fetch`) if you see discrepancies.
 
-El **merge-base más cercano** existe como botón explícito (*Auto-detectar branch
-base*), no como default silencioso: detecta el caso de branches apilados
-(`feature_x → feature_z`) y, si confirmás, lo guarda como override.
+The **closest merge-base** is an explicit button (*Auto-detect base branch*),
+not a silent default: it handles stacked branches (`feature_x → feature_z`) and,
+if you confirm, saves it as an override.
 
-Con `aschanged.alwaysCompareToMain: true` se ignoran los overrides y se
-compara siempre contra el branch principal.
+With `aschanged.alwaysCompareToMain: true`, overrides are ignored and the
+comparison always runs against the main branch.
 
-## Por qué no detecta la base "sola"
+## Why it can't detect the base "on its own"
 
-Git no almacena de qué branch nació un branch (un branch es solo un puntero a un
-commit). Lo que sí sabe es calcular el punto de divergencia (`merge-base`) contra
-una ref dada. Por eso la base es una **elección** (manual o el principal), igual
-que el "compare against" de clientes como Tower.
+Git doesn't store which branch a branch was born from (a branch is just a
+pointer to a commit). What it can do is compute the divergence point
+(`merge-base`) against a given ref. So the base is a **choice** (manual or the
+main branch), just like the "compare against" of clients such as Tower.
 
-## Configuración
+## Configuration
 
-| Opción | Default | Descripción |
+| Option | Default | Description |
 |---|---|---|
-| `aschanged.alwaysCompareToMain` | `false` | Forzar siempre el branch principal. |
-| `aschanged.mainBranchCandidates` | `["main","master","develop"]` | Candidatos a base por defecto. |
-| `aschanged.respectFilesExclude` | `true` | Ocultar archivos que matchean `files.exclude`. |
+| `aschanged.alwaysCompareToMain` | `false` | Always force the main branch. |
+| `aschanged.mainBranchCandidates` | `["main","master","develop"]` | Default base candidates. |
+| `aschanged.respectFilesExclude` | `true` | Hide files matching `files.exclude`. |
 
-> `.gitignore` (node_modules, .env, etc.) ya lo filtra git: esos archivos no
-> aparecen en el diff ni en el status. `files.exclude` se aplica encima.
+> `.gitignore` (node_modules, .env, etc.) is already filtered by git: those
+> files don't appear in the diff or in the status. `files.exclude` applies on top.
 
-## Desarrollo
+## Development
 
 ```bash
 npm install
-npm run watch      # build incremental con esbuild
-# F5 en VSCode -> "Run Extension"
+npm run watch      # incremental build with esbuild
+# F5 in VSCode -> "Run Extension"
 ```
 
-## Limitaciones (v0.1)
+## Limitations (v0.1)
 
-- Usa el primer workspace folder / repo. Multi-repo es una mejora futura.
-- La integración con la base del PR de GitHub/GitLab queda como fase posterior.
-- Los archivos **pendientes** (sin commitear) se muestran aunque no estén en el
-  PR del servidor: es intencional, pero explica diferencias de conteo con GitHub.
-- `origin/<base>` se compara tal como esté en local; si no hiciste fetch reciente
-  puede estar atrasado. *Fetch del branch base* lo actualiza.
+- Uses the first workspace folder / repo. Multi-repo is a future improvement.
+- Integrating with the GitHub/GitLab PR base is left for a later phase.
+- **Pending** (uncommitted) files are shown even if they aren't in the server's
+  PR: this is intentional, but it explains count differences with GitHub.
+- `origin/<base>` is compared as-is locally; if you haven't fetched recently it
+  may be stale. *Fetch base branch* updates it.

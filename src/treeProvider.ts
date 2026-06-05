@@ -2,23 +2,23 @@ import * as vscode from "vscode";
 import * as path from "node:path";
 import { ChangedFile, ChangeKind } from "./git";
 
-/** Modo de presentación de la vista. */
+/** How the view presents its items. */
 export type ViewMode = "list" | "tree";
 
-/** Nodo de la vista: un archivo cambiado. */
+/** View node: a changed file. */
 export class ChangedFileItem extends vscode.TreeItem {
   constructor(
     public readonly file: ChangedFile,
     public readonly repoRoot: string,
     public readonly mergeBaseSha: string,
-    /** Etiqueta a mostrar: ruta completa (lista) o solo el nombre (árbol). */
+    /** Label to show: full path (list) or just the file name (tree). */
     label: string = file.relPath
   ) {
     super(label, vscode.TreeItemCollapsibleState.None);
 
     const absPath = path.join(repoRoot, file.relPath);
     this.resourceUri = vscode.Uri.file(absPath);
-    // El ícono nativo del tipo de archivo lo aporta resourceUri.
+    // The native file-type icon comes from resourceUri.
     this.label = label;
     // Tooltip is just the path; the status is conveyed once by the dot badge's
     // own tooltip (see StatusDecorationProvider), avoiding a duplicate phrase.
@@ -28,20 +28,20 @@ export class ChangedFileItem extends vscode.TreeItem {
     // shows the diff against the base instead; otherwise open the source file.
     this.command =
       file.kind === "deleted"
-        ? { command: "aschanged.openDiff", title: "Ver diff", arguments: [this] }
-        : { command: "vscode.open", title: "Abrir archivo", arguments: [this.resourceUri] };
+        ? { command: "aschanged.openDiff", title: "Show diff", arguments: [this] }
+        : { command: "vscode.open", title: "Open file", arguments: [this.resourceUri] };
   }
 }
 
-/** Nodo de la vista: una carpeta que agrupa archivos cambiados (modo árbol). */
+/** View node: a folder grouping changed files (tree mode). */
 export class ChangedFolderItem extends vscode.TreeItem {
   public children: TreeNode[] = [];
 
   constructor(
-    /** Ruta relativa de la carpeta respecto al root del repo (POSIX). */
+    /** Folder path relative to the repo root (POSIX). */
     public readonly relPath: string,
     public readonly repoRoot: string,
-    /** Etiqueta (nombre simple o segmentos fusionados con compact folders). */
+    /** Label (plain name, or segments merged via compact folders). */
     label: string
   ) {
     super(label, vscode.TreeItemCollapsibleState.Expanded);
@@ -75,16 +75,16 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<TreeNode> {
   }
 }
 
-/** Nombre del último segmento de una ruta POSIX. */
+/** Last segment of a POSIX path. */
 function baseName(relPath: string): string {
   const i = relPath.lastIndexOf("/");
   return i === -1 ? relPath : relPath.slice(i + 1);
 }
 
 /**
- * Construye los nodos raíz de la vista a partir de la lista de archivos.
- * En modo "list" devuelve un nodo por archivo con la ruta completa.
- * En modo "tree" arma carpetas anidadas, como la sección de archivos del Explorer.
+ * Builds the view's root nodes from the file list.
+ * In "list" mode it returns one node per file with the full path.
+ * In "tree" mode it builds nested folders, like the Explorer's file section.
  */
 export function buildNodes(
   files: ChangedFile[],
@@ -100,7 +100,7 @@ export function buildNodes(
   const root = new DirNode("", "");
   for (const f of files) {
     const parts = f.relPath.split("/");
-    parts.pop(); // el nombre del archivo no es carpeta
+    parts.pop(); // the file name is not a folder
     let dir = root;
     let acc = "";
     for (const part of parts) {
@@ -118,14 +118,14 @@ export function buildNodes(
   return toNodes(root, repoRoot, mergeBaseSha, compactFolders);
 }
 
-/** Estructura intermedia para armar el árbol de carpetas. */
+/** Intermediate structure for building the folder tree. */
 class DirNode {
   readonly dirs = new Map<string, DirNode>();
   readonly files: ChangedFile[] = [];
   constructor(readonly name: string, readonly relPath: string) {}
 }
 
-/** Convierte el contenido (subcarpetas + archivos) de un DirNode en nodos de la vista. */
+/** Converts a DirNode's contents (subfolders + files) into view nodes. */
 function toNodes(
   dir: DirNode,
   repoRoot: string,
@@ -140,11 +140,11 @@ function toNodes(
     .sort((a, b) => baseName(a.relPath).localeCompare(baseName(b.relPath)))
     .map((f) => new ChangedFileItem(f, repoRoot, mergeBaseSha, baseName(f.relPath)));
 
-  // Carpetas primero, luego archivos (como el Explorer).
+  // Folders first, then files (like the Explorer).
   return [...folders, ...fileItems];
 }
 
-/** Construye un nodo de carpeta, fusionando cadenas de carpeta única si compact está activo. */
+/** Builds a folder node, merging single-child folder chains when compact is on. */
 function toFolder(
   dir: DirNode,
   repoRoot: string,
@@ -153,7 +153,7 @@ function toFolder(
 ): ChangedFolderItem {
   let label = dir.name;
   let cur = dir;
-  // Compact folders: "a" → "b" → archivos se muestra como "a/b".
+  // Compact folders: "a" → "b" → files is shown as "a/b".
   if (compact) {
     while (cur.files.length === 0 && cur.dirs.size === 1) {
       const only = [...cur.dirs.values()][0];
@@ -171,27 +171,27 @@ const KIND_BADGE: Record<ChangeKind, { letter: string; colorId: string; tooltip:
   added: {
     letter: "A",
     colorId: "gitDecoration.addedResourceForeground",
-    tooltip: "Agregado (sin commitear)",
+    tooltip: "Added (uncommitted)",
   },
   modified: {
     letter: "M",
     colorId: "gitDecoration.modifiedResourceForeground",
-    tooltip: "Modificado (sin commitear)",
+    tooltip: "Modified (uncommitted)",
   },
   deleted: {
     letter: "D",
     colorId: "gitDecoration.deletedResourceForeground",
-    tooltip: "Eliminado (sin commitear)",
+    tooltip: "Deleted (uncommitted)",
   },
   renamed: {
     letter: "R",
     colorId: "gitDecoration.renamedResourceForeground",
-    tooltip: "Renombrado (sin commitear)",
+    tooltip: "Renamed (uncommitted)",
   },
   untracked: {
     letter: "U",
     colorId: "gitDecoration.untrackedResourceForeground",
-    tooltip: "Sin trackear",
+    tooltip: "Untracked",
   },
 };
 
@@ -213,7 +213,7 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
       const fsPath = vscode.Uri.file(path.join(repoRoot, f.relPath)).fsPath;
       next.set(fsPath, f.kind);
     }
-    // URIs que cambiaron de estado (o aparecieron/desaparecieron).
+    // URIs whose status changed (or appeared/disappeared).
     const changed: vscode.Uri[] = [];
     for (const key of new Set([...this.kindByPath.keys(), ...next.keys()])) {
       if (this.kindByPath.get(key) !== next.get(key)) {

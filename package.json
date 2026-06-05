@@ -17,7 +17,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onView:branchChangedFiles.view"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -34,7 +35,7 @@
     "viewsWelcome": [
       {
         "view": "branchChangedFiles.view",
-        "contents": "No se detectó un repositorio git en el workspace.\n[Recargar](command:branchChangedFiles.refresh)"
+        "contents": "No hay archivos modificados respecto a la base.\n[Recargar](command:branchChangedFiles.refresh)"
       }
     ],
     "commands": [

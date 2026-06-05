@@ -11,9 +11,12 @@ import {
 } from "./git";
 import { BaseResolver } from "./baseResolver";
 import {
+  buildNodes,
   ChangedFileItem,
   ChangedFilesProvider,
   StatusDecorationProvider,
+  TreeNode,
+  ViewMode,
 } from "./treeProvider";
 
 interface RepoContext {
@@ -26,18 +29,26 @@ interface RepoContext {
 let provider: ChangedFilesProvider;
 let decorations: StatusDecorationProvider;
 let resolver: BaseResolver;
-let treeView: vscode.TreeView<ChangedFileItem>;
+let treeView: vscode.TreeView<TreeNode>;
 let current: RepoContext | null = null;
 let refreshTimer: NodeJS.Timeout | undefined;
+let viewMode: ViewMode = "tree";
+let globalState: vscode.Memento;
+
+const VIEW_MODE_KEY = "branchChangedFiles.viewMode";
 
 export function activate(context: vscode.ExtensionContext) {
   provider = new ChangedFilesProvider();
   decorations = new StatusDecorationProvider();
   resolver = new BaseResolver(context.workspaceState);
+  globalState = context.globalState;
+
+  viewMode = globalState.get<ViewMode>(VIEW_MODE_KEY, "tree");
+  void vscode.commands.executeCommand("setContext", VIEW_MODE_KEY, viewMode);
 
   treeView = vscode.window.createTreeView("branchChangedFiles.view", {
     treeDataProvider: provider,
-    showCollapseAll: false,
+    showCollapseAll: true,
   });
 
   context.subscriptions.push(
@@ -51,7 +62,9 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("branchChangedFiles.clearBase", () => clearBaseCommand()),
     vscode.commands.registerCommand("branchChangedFiles.openDiff", (item: ChangedFileItem) =>
       openDiff(item)
-    )
+    ),
+    vscode.commands.registerCommand("branchChangedFiles.viewAsTree", () => setViewMode("tree")),
+    vscode.commands.registerCommand("branchChangedFiles.viewAsList", () => setViewMode("list"))
   );
 
   // Refrescos reactivos.
@@ -59,7 +72,12 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidSaveTextDocument(() => scheduleRefresh()),
     vscode.workspace.onDidChangeWorkspaceFolders(() => scheduleRefresh()),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("branchChangedFiles")) scheduleRefresh();
+      if (
+        e.affectsConfiguration("branchChangedFiles") ||
+        e.affectsConfiguration("explorer.compactFolders")
+      ) {
+        scheduleRefresh();
+      }
     })
   );
 
@@ -99,12 +117,21 @@ function scheduleRefresh() {
   refreshTimer = setTimeout(() => refresh(), 250);
 }
 
+/** Cambia entre vista de lista plana y vista de árbol de carpetas. */
+async function setViewMode(mode: ViewMode): Promise<void> {
+  if (viewMode === mode) return;
+  viewMode = mode;
+  await globalState.update(VIEW_MODE_KEY, mode);
+  await vscode.commands.executeCommand("setContext", VIEW_MODE_KEY, mode);
+  await refresh();
+}
+
 /** Recalcula todo el estado y repinta la vista. */
 async function refresh(): Promise<void> {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (!folder) {
     current = null;
-    provider.setItems([]);
+    provider.setRoots([]);
     treeView.message = "Abrí una carpeta con un repositorio git.";
     return;
   }
@@ -112,7 +139,7 @@ async function refresh(): Promise<void> {
   const repoRoot = await getRepoRoot(folder.uri.fsPath);
   if (!repoRoot) {
     current = null;
-    provider.setItems([]);
+    provider.setRoots([]);
     treeView.message = "No se detectó un repositorio git en el workspace.";
     return;
   }
@@ -122,7 +149,7 @@ async function refresh(): Promise<void> {
 
   if (!base) {
     current = { repoRoot, branch, base: null, mergeBaseSha: null };
-    provider.setItems([]);
+    provider.setRoots([]);
     decorations.update(repoRoot, []);
     treeView.message =
       "No se pudo determinar un branch base. Usá 'Elegir branch base...' o configurá mainBranchCandidates.";
@@ -132,7 +159,7 @@ async function refresh(): Promise<void> {
   const mb = await mergeBase(repoRoot, base, "HEAD");
   if (!mb) {
     current = { repoRoot, branch, base, mergeBaseSha: null };
-    provider.setItems([]);
+    provider.setRoots([]);
     decorations.update(repoRoot, []);
     treeView.message = `El branch actual no comparte historia con '${base}'.`;
     return;
@@ -154,7 +181,11 @@ async function refresh(): Promise<void> {
   treeView.message = visible.length === 0 ? "Sin archivos modificados respecto a la base." : undefined;
 
   decorations.update(repoRoot, visible);
-  provider.setItems(visible.map((f) => new ChangedFileItem(f, repoRoot, mb)));
+
+  const compactFolders = vscode.workspace
+    .getConfiguration("explorer")
+    .get<boolean>("compactFolders", true);
+  provider.setRoots(buildNodes(visible, repoRoot, mb, viewMode, compactFolders));
 }
 
 /**

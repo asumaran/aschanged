@@ -63,6 +63,18 @@
         "title": "Abrir diff contra la base",
         "category": "Branch Changes",
         "icon": "$(git-compare)"
+      },
+      {
+        "command": "branchChangedFiles.viewAsTree",
+        "title": "Ver como árbol de carpetas",
+        "category": "Branch Changes",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "branchChangedFiles.viewAsList",
+        "title": "Ver como lista plana",
+        "category": "Branch Changes",
+        "icon": "$(list-flat)"
       }
     ],
     "menus": {
@@ -71,6 +83,16 @@
           "command": "branchChangedFiles.refresh",
           "when": "view == branchChangedFiles.view",
           "group": "navigation@1"
+        },
+        {
+          "command": "branchChangedFiles.viewAsTree",
+          "when": "view == branchChangedFiles.view && branchChangedFiles.viewMode == list",
+          "group": "navigation@0"
+        },
+        {
+          "command": "branchChangedFiles.viewAsList",
+          "when": "view == branchChangedFiles.view && branchChangedFiles.viewMode == tree",
+          "group": "navigation@0"
         },
         {
           "command": "branchChangedFiles.setBase",

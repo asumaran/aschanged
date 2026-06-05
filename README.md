@@ -6,7 +6,13 @@ lo que tiene cambios sin commitear.
 
 ## Qué muestra
 
-- Una vista **Branch Changes** dentro del Explorer (lista plana de rutas).
+- Una vista **Branch Changes** dentro del Explorer.
+- Dos modos de presentación, alternables con el botón en la barra de la vista
+  (igual que el toggle list/tree de Source Control):
+  - **Árbol de carpetas** (default): archivos anidados por carpeta, como la
+    sección de archivos del Explorer. Respeta `explorer.compactFolders`.
+  - **Lista plana**: un nodo por archivo con la ruta relativa completa.
+  - El modo elegido se recuerda entre sesiones.
 - En el header: `branch_actual ← base` (con `(manual)` si la base es un override).
 - Cada archivo con un badge:
   - `●` (color de modificado) → **pendiente**: tiene cambios sin commitear.

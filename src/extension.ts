@@ -36,14 +36,59 @@ let current: RepoContext | null = null;
 let refreshTimer: NodeJS.Timeout | undefined;
 let viewMode: ViewMode = "tree";
 let globalState: vscode.Memento;
+let workspaceState: vscode.Memento;
 
 const VIEW_MODE_KEY = "branchChangedFiles.viewMode";
+const CACHE_KEY = "branchChangedFiles.snapshot";
+
+/**
+ * Last computed view state, persisted per workspace. On reactivation it is
+ * painted synchronously so the view shows the previous files immediately —
+ * like the built-in Explorer — instead of an empty/"no data" gap while the
+ * async refresh recomputes everything from git.
+ */
+interface Snapshot {
+  repoRoot: string;
+  mergeBaseSha: string;
+  branch: string | null;
+  base: string;
+  overridden: boolean;
+  files: ChangedFile[];
+}
+
+/** Whether folders should be compacted, mirroring the Explorer's setting. */
+function compactFoldersEnabled(): boolean {
+  return vscode.workspace.getConfiguration("explorer").get<boolean>("compactFolders", true);
+}
+
+/** Persists (or clears, with null) the last view state for instant repaint. */
+function saveSnapshot(snap: Snapshot | null): void {
+  void workspaceState.update(CACHE_KEY, snap ?? undefined);
+}
+
+/**
+ * Paints the cached snapshot synchronously, before the first async refresh.
+ * Best-effort: if the branch changed since last session, the refresh will
+ * reconcile it a moment later (same way git decorations settle in the Explorer).
+ */
+function seedFromCache(): void {
+  const snap = workspaceState.get<Snapshot>(CACHE_KEY);
+  if (!snap || snap.files.length === 0) return;
+  treeView.description = `${snap.branch ?? "(detached)"} ← ${snap.base}${
+    snap.overridden ? " (manual)" : ""
+  }`;
+  decorations.update(snap.repoRoot, snap.files);
+  provider.setRoots(
+    buildNodes(snap.files, snap.repoRoot, snap.mergeBaseSha, viewMode, compactFoldersEnabled())
+  );
+}
 
 export function activate(context: vscode.ExtensionContext) {
   provider = new ChangedFilesProvider();
   decorations = new StatusDecorationProvider();
   resolver = new BaseResolver(context.workspaceState);
   globalState = context.globalState;
+  workspaceState = context.workspaceState;
 
   viewMode = globalState.get<ViewMode>(VIEW_MODE_KEY, "tree");
   void vscode.commands.executeCommand("setContext", VIEW_MODE_KEY, viewMode);
@@ -52,6 +97,9 @@ export function activate(context: vscode.ExtensionContext) {
     treeDataProvider: provider,
     showCollapseAll: true,
   });
+
+  // Paint last session's files right away, then refresh reconciles in background.
+  seedFromCache();
 
   context.subscriptions.push(
     treeView,
@@ -134,6 +182,7 @@ async function refresh(): Promise<void> {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (!folder) {
     current = null;
+    saveSnapshot(null);
     provider.setRoots([]);
     treeView.message = "Abrí una carpeta con un repositorio git.";
     return;
@@ -142,6 +191,7 @@ async function refresh(): Promise<void> {
   const repoRoot = await getRepoRoot(folder.uri.fsPath);
   if (!repoRoot) {
     current = null;
+    saveSnapshot(null);
     provider.setRoots([]);
     treeView.message = "No se detectó un repositorio git en el workspace.";
     return;
@@ -152,6 +202,7 @@ async function refresh(): Promise<void> {
 
   if (!base) {
     current = { repoRoot, branch, base: null, mergeBaseSha: null };
+    saveSnapshot(null);
     provider.setRoots([]);
     decorations.update(repoRoot, []);
     treeView.message =
@@ -162,6 +213,7 @@ async function refresh(): Promise<void> {
   const mb = await mergeBase(repoRoot, base, "HEAD");
   if (!mb) {
     current = { repoRoot, branch, base, mergeBaseSha: null };
+    saveSnapshot(null);
     provider.setRoots([]);
     decorations.update(repoRoot, []);
     treeView.message = `El branch actual no comparte historia con '${base}'.`;
@@ -184,11 +236,14 @@ async function refresh(): Promise<void> {
   treeView.message = visible.length === 0 ? "Sin archivos modificados respecto a la base." : undefined;
 
   decorations.update(repoRoot, visible);
+  provider.setRoots(buildNodes(visible, repoRoot, mb, viewMode, compactFoldersEnabled()));
 
-  const compactFolders = vscode.workspace
-    .getConfiguration("explorer")
-    .get<boolean>("compactFolders", true);
-  provider.setRoots(buildNodes(visible, repoRoot, mb, viewMode, compactFolders));
+  // Persist for the next reactivation's instant repaint (only the populated state).
+  saveSnapshot(
+    visible.length > 0
+      ? { repoRoot, mergeBaseSha: mb, branch, base, overridden, files: visible }
+      : null
+  );
 }
 
 /**

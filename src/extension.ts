@@ -9,6 +9,7 @@ import {
   listBranches,
   mergeBase,
   pendingFiles,
+  RawChange,
 } from "./git";
 import { BaseResolver } from "./baseResolver";
 import {
@@ -194,15 +195,15 @@ async function refresh(): Promise<void> {
  * Une commiteados y pendientes en una sola lista. Si un archivo está en ambos,
  * gana "pending" (tiene cambios sin commitear).
  */
-function buildFileList(committed: string[], pending: string[]): ChangedFile[] {
+function buildFileList(committed: RawChange[], pending: RawChange[]): ChangedFile[] {
   const map = new Map<string, ChangedFile>();
 
-  for (const relPath of committed) {
-    map.set(relPath, { relPath, status: "committed" });
+  for (const c of committed) {
+    map.set(c.relPath, { relPath: c.relPath, status: "committed", kind: c.kind });
   }
   // Si un archivo también tiene cambios sin commitear, "pending" sobrescribe.
-  for (const relPath of pending) {
-    map.set(relPath, { relPath, status: "pending" });
+  for (const p of pending) {
+    map.set(p.relPath, { relPath: p.relPath, status: "pending", kind: p.kind });
   }
 
   return [...map.values()].sort((a, b) => a.relPath.localeCompare(b.relPath));

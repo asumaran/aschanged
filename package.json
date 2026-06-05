@@ -1,13 +1,13 @@
 {
-  "name": "branch-changed-files",
-  "displayName": "Branch Changed Files",
+  "name": "aschanged",
+  "displayName": "AS Changed",
   "description": "Muestra en el Explorer los archivos modificados en el branch actual respecto a su branch base, diferenciando cambios commiteados de cambios pendientes.",
   "version": "0.1.0",
   "publisher": "asumaran",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/asumaran/branch-changed-files.git"
+    "url": "https://github.com/asumaran/aschanged.git"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -18,14 +18,14 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onView:branchChangedFiles.view"
+    "onView:aschanged.view"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "views": {
       "explorer": [
         {
-          "id": "branchChangedFiles.view",
+          "id": "aschanged.view",
           "name": "Branch Changes",
           "icon": "$(git-branch)",
           "contextualTitle": "Branch Changes"
@@ -34,55 +34,55 @@
     },
     "viewsWelcome": [
       {
-        "view": "branchChangedFiles.view",
-        "contents": "No hay archivos modificados respecto a la base.\n[Recargar](command:branchChangedFiles.refresh)"
+        "view": "aschanged.view",
+        "contents": "No hay archivos modificados respecto a la base.\n[Recargar](command:aschanged.refresh)"
       }
     ],
     "commands": [
       {
-        "command": "branchChangedFiles.refresh",
+        "command": "aschanged.refresh",
         "title": "Refrescar",
         "category": "Branch Changes",
         "icon": "$(refresh)"
       },
       {
-        "command": "branchChangedFiles.setBase",
+        "command": "aschanged.setBase",
         "title": "Elegir branch base...",
         "category": "Branch Changes",
         "icon": "$(git-compare)"
       },
       {
-        "command": "branchChangedFiles.autoDetectBase",
+        "command": "aschanged.autoDetectBase",
         "title": "Auto-detectar branch base (merge-base más cercano)",
         "category": "Branch Changes",
         "icon": "$(wand)"
       },
       {
-        "command": "branchChangedFiles.clearBase",
+        "command": "aschanged.clearBase",
         "title": "Restablecer base al default",
         "category": "Branch Changes",
         "icon": "$(discard)"
       },
       {
-        "command": "branchChangedFiles.openDiff",
+        "command": "aschanged.openDiff",
         "title": "Abrir diff contra la base",
         "category": "Branch Changes",
         "icon": "$(git-compare)"
       },
       {
-        "command": "branchChangedFiles.viewAsTree",
+        "command": "aschanged.viewAsTree",
         "title": "Ver como árbol de carpetas",
         "category": "Branch Changes",
         "icon": "$(list-tree)"
       },
       {
-        "command": "branchChangedFiles.viewAsList",
+        "command": "aschanged.viewAsList",
         "title": "Ver como lista plana",
         "category": "Branch Changes",
         "icon": "$(list-flat)"
       },
       {
-        "command": "branchChangedFiles.fetchBase",
+        "command": "aschanged.fetchBase",
         "title": "Fetch del branch base (actualizar origin)",
         "category": "Branch Changes",
         "icon": "$(cloud-download)"
@@ -91,58 +91,58 @@
     "menus": {
       "view/title": [
         {
-          "command": "branchChangedFiles.refresh",
-          "when": "view == branchChangedFiles.view",
+          "command": "aschanged.refresh",
+          "when": "view == aschanged.view",
           "group": "navigation@1"
         },
         {
-          "command": "branchChangedFiles.fetchBase",
-          "when": "view == branchChangedFiles.view",
+          "command": "aschanged.fetchBase",
+          "when": "view == aschanged.view",
           "group": "1_base@0"
         },
         {
-          "command": "branchChangedFiles.viewAsTree",
-          "when": "view == branchChangedFiles.view && branchChangedFiles.viewMode == list",
+          "command": "aschanged.viewAsTree",
+          "when": "view == aschanged.view && aschanged.viewMode == list",
           "group": "navigation@0"
         },
         {
-          "command": "branchChangedFiles.viewAsList",
-          "when": "view == branchChangedFiles.view && branchChangedFiles.viewMode == tree",
+          "command": "aschanged.viewAsList",
+          "when": "view == aschanged.view && aschanged.viewMode == tree",
           "group": "navigation@0"
         },
         {
-          "command": "branchChangedFiles.setBase",
-          "when": "view == branchChangedFiles.view",
+          "command": "aschanged.setBase",
+          "when": "view == aschanged.view",
           "group": "navigation@2"
         },
         {
-          "command": "branchChangedFiles.autoDetectBase",
-          "when": "view == branchChangedFiles.view",
+          "command": "aschanged.autoDetectBase",
+          "when": "view == aschanged.view",
           "group": "1_base@1"
         },
         {
-          "command": "branchChangedFiles.clearBase",
-          "when": "view == branchChangedFiles.view",
+          "command": "aschanged.clearBase",
+          "when": "view == aschanged.view",
           "group": "1_base@2"
         }
       ],
       "view/item/context": [
         {
-          "command": "branchChangedFiles.openDiff",
-          "when": "view == branchChangedFiles.view && viewItem == changedFile",
+          "command": "aschanged.openDiff",
+          "when": "view == aschanged.view && viewItem == changedFile",
           "group": "inline"
         }
       ]
     },
     "configuration": {
-      "title": "Branch Changed Files",
+      "title": "AS Changed",
       "properties": {
-        "branchChangedFiles.alwaysCompareToMain": {
+        "aschanged.alwaysCompareToMain": {
           "type": "boolean",
           "default": false,
           "description": "Forzar siempre la comparación contra el branch principal, ignorando overrides manuales por branch."
         },
-        "branchChangedFiles.mainBranchCandidates": {
+        "aschanged.mainBranchCandidates": {
           "type": "array",
           "items": {
             "type": "string"
@@ -154,7 +154,7 @@
           ],
           "description": "Branches candidatos a usarse como base por defecto, en orden de prioridad."
         },
-        "branchChangedFiles.respectFilesExclude": {
+        "aschanged.respectFilesExclude": {
           "type": "boolean",
           "default": true,
           "description": "Ocultar archivos que coincidan con los globs de la configuración 'files.exclude' (igual que el Explorer)."

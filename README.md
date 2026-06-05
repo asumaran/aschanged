@@ -1,4 +1,4 @@
-# Branch Changed Files
+# AS Changed
 
 Una sección en el Explorer de VSCode que lista los archivos modificados en el
 branch actual **respecto a su branch base**, diferenciando lo ya commiteado de
@@ -45,7 +45,7 @@ El **merge-base más cercano** existe como botón explícito (*Auto-detectar bra
 base*), no como default silencioso: detecta el caso de branches apilados
 (`feature_x → feature_z`) y, si confirmás, lo guarda como override.
 
-Con `branchChangedFiles.alwaysCompareToMain: true` se ignoran los overrides y se
+Con `aschanged.alwaysCompareToMain: true` se ignoran los overrides y se
 compara siempre contra el branch principal.
 
 ## Por qué no detecta la base "sola"
@@ -59,9 +59,9 @@ que el "compare against" de clientes como Tower.
 
 | Opción | Default | Descripción |
 |---|---|---|
-| `branchChangedFiles.alwaysCompareToMain` | `false` | Forzar siempre el branch principal. |
-| `branchChangedFiles.mainBranchCandidates` | `["main","master","develop"]` | Candidatos a base por defecto. |
-| `branchChangedFiles.respectFilesExclude` | `true` | Ocultar archivos que matchean `files.exclude`. |
+| `aschanged.alwaysCompareToMain` | `false` | Forzar siempre el branch principal. |
+| `aschanged.mainBranchCandidates` | `["main","master","develop"]` | Candidatos a base por defecto. |
+| `aschanged.respectFilesExclude` | `true` | Ocultar archivos que matchean `files.exclude`. |
 
 > `.gitignore` (node_modules, .env, etc.) ya lo filtra git: esos archivos no
 > aparecen en el diff ni en el status. `files.exclude` se aplica encima.

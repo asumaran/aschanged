@@ -38,8 +38,8 @@ let viewMode: ViewMode = "tree";
 let globalState: vscode.Memento;
 let workspaceState: vscode.Memento;
 
-const VIEW_MODE_KEY = "branchChangedFiles.viewMode";
-const CACHE_KEY = "branchChangedFiles.snapshot";
+const VIEW_MODE_KEY = "aschanged.viewMode";
+const CACHE_KEY = "aschanged.snapshot";
 
 /**
  * Last computed view state, persisted per workspace. On reactivation it is
@@ -93,7 +93,7 @@ export function activate(context: vscode.ExtensionContext) {
   viewMode = globalState.get<ViewMode>(VIEW_MODE_KEY, "tree");
   void vscode.commands.executeCommand("setContext", VIEW_MODE_KEY, viewMode);
 
-  treeView = vscode.window.createTreeView("branchChangedFiles.view", {
+  treeView = vscode.window.createTreeView("aschanged.view", {
     treeDataProvider: provider,
     showCollapseAll: true,
   });
@@ -104,18 +104,18 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     treeView,
     vscode.window.registerFileDecorationProvider(decorations),
-    vscode.commands.registerCommand("branchChangedFiles.refresh", () => refresh()),
-    vscode.commands.registerCommand("branchChangedFiles.setBase", () => setBaseCommand()),
-    vscode.commands.registerCommand("branchChangedFiles.autoDetectBase", () =>
+    vscode.commands.registerCommand("aschanged.refresh", () => refresh()),
+    vscode.commands.registerCommand("aschanged.setBase", () => setBaseCommand()),
+    vscode.commands.registerCommand("aschanged.autoDetectBase", () =>
       autoDetectCommand()
     ),
-    vscode.commands.registerCommand("branchChangedFiles.clearBase", () => clearBaseCommand()),
-    vscode.commands.registerCommand("branchChangedFiles.openDiff", (item: ChangedFileItem) =>
+    vscode.commands.registerCommand("aschanged.clearBase", () => clearBaseCommand()),
+    vscode.commands.registerCommand("aschanged.openDiff", (item: ChangedFileItem) =>
       openDiff(item)
     ),
-    vscode.commands.registerCommand("branchChangedFiles.viewAsTree", () => setViewMode("tree")),
-    vscode.commands.registerCommand("branchChangedFiles.viewAsList", () => setViewMode("list")),
-    vscode.commands.registerCommand("branchChangedFiles.fetchBase", () => fetchBaseCommand())
+    vscode.commands.registerCommand("aschanged.viewAsTree", () => setViewMode("tree")),
+    vscode.commands.registerCommand("aschanged.viewAsList", () => setViewMode("list")),
+    vscode.commands.registerCommand("aschanged.fetchBase", () => fetchBaseCommand())
   );
 
   // Refrescos reactivos.
@@ -124,7 +124,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeWorkspaceFolders(() => scheduleRefresh()),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (
-        e.affectsConfiguration("branchChangedFiles") ||
+        e.affectsConfiguration("aschanged") ||
         e.affectsConfiguration("explorer.compactFolders")
       ) {
         scheduleRefresh();
@@ -267,7 +267,7 @@ function buildFileList(committed: RawChange[], pending: RawChange[]): ChangedFil
 /** Filtra archivos que coinciden con los globs de files.exclude. */
 function applyExcludes(files: ChangedFile[]): ChangedFile[] {
   const respect = vscode.workspace
-    .getConfiguration("branchChangedFiles")
+    .getConfiguration("aschanged")
     .get<boolean>("respectFilesExclude", true);
   if (!respect) return files;
 
@@ -355,7 +355,7 @@ async function fetchBaseCommand(): Promise<void> {
   const branch = base.startsWith(`${remote}/`) ? base.slice(remote.length + 1) : base;
 
   await vscode.window.withProgress(
-    { location: { viewId: "branchChangedFiles.view" }, title: `Fetch ${remote}/${branch}…` },
+    { location: { viewId: "aschanged.view" }, title: `Fetch ${remote}/${branch}…` },
     async () => {
       try {
         await fetchBranch(repoRoot, remote, branch);

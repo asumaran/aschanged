@@ -27,13 +27,13 @@ export class BaseResolver {
 
   private candidates(): string[] {
     return vscode.workspace
-      .getConfiguration("branchChangedFiles")
+      .getConfiguration("aschanged")
       .get<string[]>("mainBranchCandidates", ["main", "master", "develop"]);
   }
 
   private get alwaysMain(): boolean {
     return vscode.workspace
-      .getConfiguration("branchChangedFiles")
+      .getConfiguration("aschanged")
       .get<boolean>("alwaysCompareToMain", false);
   }
 

@@ -28,7 +28,7 @@ export class ChangedFileItem extends vscode.TreeItem {
     // shows the diff against the base instead; otherwise open the source file.
     this.command =
       file.kind === "deleted"
-        ? { command: "branchChangedFiles.openDiff", title: "Ver diff", arguments: [this] }
+        ? { command: "aschanged.openDiff", title: "Ver diff", arguments: [this] }
         : { command: "vscode.open", title: "Abrir archivo", arguments: [this.resourceUri] };
   }
 }

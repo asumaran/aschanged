@@ -98,6 +98,12 @@ export function activate(context: vscode.ExtensionContext) {
     showCollapseAll: true,
   });
 
+  // Mark the view when running from the Extension Development Host (F5),
+  // so it's distinguishable from an installed build active at the same time.
+  if (context.extensionMode === vscode.ExtensionMode.Development) {
+    treeView.title = "Branch Changes [DEV]";
+  }
+
   // Paint last session's files right away, then refresh reconciles in background.
   seedFromCache();
 
